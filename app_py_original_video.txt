@@ -1,0 +1,105 @@
+import streamlit as st
+from streamlit_option_menu import option_menu
+from enviar_mail import enviar_m
+from google_sheets import GoogleSheets
+import re
+import uuid
+
+#Variables
+page_title = "Reserva de turno"
+page_icon = "📅"
+layout = "centered"
+
+horas = ["10:00","11:00","12:00"]
+servicios = ["Corte - $10.000", "Corte + Barba - $12.000", "Tintura - $30.000", "Alisado - $30.000"]
+empleados = ["Cualquiera", "Maxi Ruiz", "Lucas Ruiz"]
+
+documento = "gestión-app-reservas"
+sheet = "reservas"
+credenciales = st.secrets["google"]["credenciales_google"]
+
+#Funciones
+def validate_email(email):
+    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    if re.match(pattern, email):
+        return True
+    else:
+        return False
+
+def generate_uid():
+    return str(uuid.uuid4())
+
+st.set_page_config(page_title=page_title, page_icon=page_icon, layout=layout)
+
+st.image("assets/imagenHome.webp")
+st.title("DePelos Peluquería")
+st.text("Reservá tu turno a gusto")
+
+selected = option_menu(menu_title= None, options=["Reservar","Información"], 
+                       orientation="horizontal")
+
+if selected == "Información":
+    st.subheader("Horarios")
+    dia, hora = st.columns(2)
+
+    dia.text("Lunes")
+    hora.text("10:00 - 13:00 | 16:00 - 22:00")
+    dia.text("Martes")
+    hora.text("10:00 - 13:00 | 16:00 - 22:00")
+    dia.text("Miercoles")
+    hora.text("10:00 - 13:00 | 16:00 - 22:00")
+    dia.text("Jueves")
+    hora.text("10:00 - 13:00 | 16:00 - 22:00")
+    dia.text("Viernes")
+    hora.text("10:00 - 13:00 | 16:00 - 22:00")
+    dia.text("Sabados")
+    hora.text("10:00 - 13:00 | 16:00 - 22:00")
+    dia.text("Domingos")
+    hora.text("10:00 - 13:00 | 16:00 - 22:00")
+
+    wsp, ig = st.columns(2)
+    wsp.subheader("Celular")
+    wsp.text("📞 3549-000000")
+    ig.subheader("Instagram")
+    ig.markdown("[@DePelosRuiz](https://www.instagram.com/depelosruiz/)")
+
+    st.write("##")
+    st.subheader("Dirección")
+    st.markdown("""<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d6865.649941068577!2d-65.3918415!3d-30.63889!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x942c21bb45f4b1af%3A0xaed5af0102cb132b!2sDe%20Pelos%20peluquer%C3%ADa%20%26%20barberia!5e0!3m2!1ses!2sar!4v1773407301027!5m2!1ses!2sar" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>""", unsafe_allow_html=True)
+
+if selected == "Reservar":
+    st.subheader("Reservar turno")
+
+    c1,c2 = st.columns(2)
+
+    nombre = c1.text_input("Tu nombre *", placeholder="Nombre y Apellido")
+    email = c2.text_input("Tu email *", placeholder="Email")
+    fecha = c1.date_input("Fecha *")
+    hora = c2.selectbox("Hora *", horas)
+    servicio = c1.selectbox("Servicio *", servicios)
+    empleado = c2.selectbox("Empleado", empleados)
+    nota = st.text_area("Detalles (opcional)", placeholder="Ej: Llegaré unos minutos tarde - Iré con un compañero, necesito 2 turnos")
+
+    enviar = st.button("Reservar")
+
+    ## Backend
+    if enviar:
+        with st.spinner("Cargando..."):
+            if nombre == "" or email == "":
+                st.warning("Es obligatorio llenar todos los campos con * (obligatorios)")
+            elif fecha == "" or hora == "" or servicio == "":
+                st.warning("Es obligatorio llenar todos los campos con * (obligatorios)")
+            elif not validate_email(email):
+                st.warning("El email no es válido. Agregue un email nuevamente.")
+            else:
+                #Crear evento en google calendar
+                #Crear registro en google sheet
+                uid = generate_uid()
+                data = [[nombre, email, str(fecha), hora, servicio, empleado, nota, uid]]
+                gs = GoogleSheets(credenciales, documento, sheet)
+                range = gs.ultimaFilaRango()
+                gs.write_data(range, data)
+                #Enviar mail de confirmacion al usuario
+                # enviar_m(email, nombre, fecha, hora, servicio, empleado)
+
+                st.success("Turno reservado de forma exitosa! :)")
