@@ -1,7 +1,7 @@
-google_api_python_client==2.192.0
-gspread==6.2.1
-numpy==1.24.4
-protobuf==7.34.1
-streamlit==1.40.1
-streamlit_option_menu==0.4.0
-twilio==9.10.3
+google-api-python-client
+gspread
+numpy
+protobuf
+streamlit
+streamlit-option-menu
+twilio
