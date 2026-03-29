@@ -16,3 +16,9 @@ class GoogleSheets:
         rango_i = f"A{ultimaFila}"
         rango_f = f"H{ultimaFila}" #f"{chr(ord('A') + cantColumnas - 1)}{ultimaFila}"
         return f"{rango_i}:{rango_f}"
+    
+    def read_data(self):
+        return self.sheet.get_all_values() 
+
+    def delete_row(self, fila_num):
+        self.sheet.delete_rows(fila_num)

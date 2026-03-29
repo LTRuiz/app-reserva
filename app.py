@@ -1,8 +1,8 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
-from enviar_mail import enviar_m
+from enviar_mail import enviar_m, enviar_cancelacion, avisar_nuevo_turno, avisar_cancelacion
 from google_sheets import GoogleSheets
-from enviar_wsp import enviar_whatsapp
+#from enviar_wsp import enviar_whatsapp
 import re
 import uuid
 from google_calendar import GoogleCalendar
@@ -285,7 +285,7 @@ def validate_email(email):
     return bool(re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email))
 
 def generate_uid():
-    return str(uuid.uuid4())
+    return str(uuid.uuid4())[:8].upper()
 
 def sumar_hora(tiempo):
     parsed_tiempo = dt.datetime.strptime(tiempo,"%H:%M").time()
@@ -309,8 +309,8 @@ st.markdown("""
 # ── Nav ────────────────────────────────────────────────────────────────────────
 selected = option_menu(
     menu_title=None,
-    options=["Reservar", "Información"],
-    icons=["calendar-check", "info-circle"],
+    options=["Reservar", "Cancelar", "Información"],
+    icons=["calendar-check", "calendar-x", "info-circle"],
     orientation="horizontal",
     styles={
         "container":     {"background-color": "#141414", "border": "1px solid #2e2e2e",
@@ -434,7 +434,8 @@ if selected == "Reservar":
                 # if telefono:
                 #     enviar_whatsapp(telefono, nombre, fecha, hora, servicio, empleado)
                 #Enviar mail de confirmacion al usuario
-                enviar_m(email, nombre, fecha, hora, servicio, barbero, nota)
+                enviar_m(email, nombre, fecha, hora, servicio, barbero, nota, uid)
+                avisar_nuevo_turno(nombre, fecha, hora, servicio, barbero, nota)
 
                 st.success(f"✓  Turno reservado · {str(fecha)} a las {hora}")
                 st.markdown(f"""
@@ -448,3 +449,94 @@ if selected == "Reservar":
                     {barbero}
                 </div>
                 """, unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB: CANCELAR
+# ═══════════════════════════════════════════════════════════════════════════════
+if selected == "Cancelar":
+    st.markdown('<div style="height:.5rem"></div>', unsafe_allow_html=True)
+ 
+    st.markdown('<div class="section-label">Cancelar reserva</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="background:#141414; border:1px solid #2e2e2e; border-left:3px solid #c9a84c;
+         border-radius:4px; padding:.9rem 1.2rem; margin-bottom:1.2rem;
+         font-family:'DM Mono',monospace; font-size:.76rem; color:#666; line-height:1.7;">
+        Ingresá el email y el código único que recibiste en el mail de confirmación.
+    </div>
+    """, unsafe_allow_html=True)
+ 
+    c_email, c_uuid = st.columns(2)
+    cancel_email = c_email.text_input("Email *", placeholder="juan@email.com", key="cancel_email")
+    cancel_uuid  = c_uuid.text_input("Código de reserva *", placeholder="xxxxxxxx", key="cancel_uuid")
+ 
+    cancelar = st.button("✦  Cancelar reserva  ✦")
+ 
+    if cancelar:
+        with st.spinner("Buscando tu reserva..."):
+            if not cancel_email or not cancel_uuid:
+                st.warning("Completá los campos obligatorios marcados con *")
+            elif not validate_email(cancel_email):
+                st.warning("El email ingresado no es válido.")
+            else:
+                gs = GoogleSheets(credenciales, documento, sheet)
+                all_data = gs.read_data()
+ 
+                fila_encontrada = None
+                idx_encontrado  = None
+ 
+                for i, fila in enumerate(all_data):
+                    if i == 0:
+                        continue
+                    if len(fila) >= 8 and fila[7].strip().upper() == cancel_uuid.strip().upper() and fila[1].strip().lower() == cancel_email.strip().lower():
+                        fila_encontrada = fila
+                        idx_encontrado  = i
+                        break
+
+                if fila_encontrada is None:
+                    st.error("No encontramos una reserva con esos datos. Verificá el email y el código.")
+                else:
+                    nombre_r   = fila_encontrada[0]
+                    email_r    = fila_encontrada[1]
+                    fecha_r    = fila_encontrada[2]
+                    hora_r     = fila_encontrada[3]
+                    servicio_r = fila_encontrada[4]
+                    barbero_r  = fila_encontrada[5]
+ 
+                    # Eliminar evento de Google Calendar
+                    try:
+                        calendar = GoogleCalendar(credenciales, idCalendar)
+                        eventos  = calendar.get_events(fecha_r)
+                        for evento in eventos:
+                            start = evento.get("start", {}).get("dateTime", "")
+                            if hora_r in start and nombre_r in evento.get("summary", ""):
+                                calendar.delete_event(evento["id"])
+                                break
+                    except Exception as e:
+                        st.warning(f"No se pudo eliminar el evento del calendario: {e}")
+ 
+                    # Borrar fila de Google Sheets
+                    fila_num = idx_encontrado + 2
+                    try:
+                        gs.delete_row(fila_num)
+                    except Exception as e:
+                        st.warning(f"No se pudo eliminar la reserva de la planilla: {e}")
+ 
+                    # Enviar mail de cancelación
+                    try:
+                        enviar_cancelacion(email_r, nombre_r, fecha_r, hora_r, servicio_r, barbero_r)
+                        avisar_cancelacion(nombre_r, fecha_r, hora_r, servicio_r, barbero_r)
+                    except Exception as e:
+                        st.warning(f"Error exacto: {type(e).__name__}: {e}")
+ 
+                    st.success(f"✓  Reserva cancelada · {fecha_r} a las {hora_r}")
+                    st.markdown(f"""
+                    <div style="background:#141414; border:1px solid #2e2e2e; border-left:3px solid #b84040;
+                         border-radius:4px; padding:1rem 1.25rem; margin-top:.5rem;
+                         font-family:'DM Mono',monospace; font-size:.78rem; color:#e8dcc8; line-height:1.8;">
+                        <span style="color:#666; font-size:.6rem; letter-spacing:.25em; text-transform:uppercase;">Reserva cancelada</span><br>
+                        <b style="color:#c9a84c">{nombre_r}</b><br>
+                        {servicio_r}<br>
+                        {fecha_r} · {hora_r}<br>
+                        {barbero_r}
+                    </div>
+                    """, unsafe_allow_html=True)

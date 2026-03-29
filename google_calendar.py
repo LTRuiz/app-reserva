@@ -59,6 +59,12 @@ class GoogleCalendar:
             parsed = datetime.fromisoformat(start_dt[:-6])
             start_time.append(parsed.strftime("%H:%M"))
         return start_time
+    
+    def delete_event(self, event_id):
+        try:
+            self.service.events().delete(calendarId=self.idCalendar, eventId=event_id).execute()
+        except HttpError as error:
+            raise Exception(f"Se produjo un error al eliminar el evento: {error}")
 
 # credentials = st.secrets["google"]["credenciales_google"]
 # idCalendar = "lucasruiiz912@gmail.com"
