@@ -117,11 +117,13 @@ password = "TU_APP_PASSWORD"
 El proyecto está en constante evolución. Las funcionalidades planeadas para futuras versiones incluyen:
 
 - 📲 **Integración con WhatsApp** — Envío de recordatorios y confirmaciones automáticas vía WhatsApp tanto para el cliente como para el profesional.
-- ❌ **Gestión de Cancelaciones** — Sistema para que el cliente pueda cancelar su turno de forma autónoma a través de un enlace único.
 - 🕒 **Bloqueo de Horarios** — Interfaz para que el profesional pueda bloquear fechas o rangos horarios específicos (vacaciones, feriados).
 
 ---
 
+## ✅ Funcionalidades Implementadas Recientemente
+
+- ❌ **Gestión de Cancelaciones** — El cliente puede cancelar su turno de forma autónoma a través de un enlace único enviado por email.
 ## 🤝 Contribuciones
 
 Las contribuciones son bienvenidas. Si querés adaptar la app para otro tipo de servicio, podés hacer un fork y abrir un pull request.
